@@ -220,7 +220,10 @@ impl EventHandler for Handler {
                     && m.components.iter().any(|row| {
                         row.components.iter().any(|c| {
                             if let ActionRowComponent::Button(btn) = c {
-                                btn.custom_id.as_deref() == Some("create_ticket")
+                                match &btn.data {
+                                    ButtonKind::NonLink { custom_id, .. } => custom_id == "create_ticket",
+                                _ => false,
+                                }
                             } else {
                                 false
                             }
