@@ -47,6 +47,7 @@ fn prompt(msg: &str) -> String {
     line.trim().to_string()
 }
 
+
 async fn initial_setup() -> Result<String> {
     println!("=== 初回セットアップ ===");
 
@@ -182,6 +183,7 @@ async fn initial_setup() -> Result<String> {
     Ok(token)
 }
 
+
 #[derive(Default)]
 struct BotState {
     tickets: HashMap<String, ChannelId>,
@@ -208,23 +210,50 @@ impl EventHandler for Handler {
             }
         };
 
-        let embed = CreateEmbed::new()
-            .title("サポートチケットを作成")
-            .description("次のボタンを押してサポートチケットを作成します。")
-            .color(0x5865F2);
+        let bot_id = ready.user.id;
+        let already_sent = match channel_id
+            .messages(&ctx.http, GetMessages::new().limit(100))
+            .await
+        {
+            Ok(msgs) => msgs.iter().any(|m| {
+                m.author.id == bot_id
+                    && m.components.iter().any(|row| {
+                        row.components.iter().any(|c| {
+                            if let ActionRowComponent::Button(btn) = c {
+                                btn.custom_id.as_deref() == Some("create_ticket")
+                            } else {
+                                false
+                            }
+                        })
+                    })
+            }),
+            Err(e) => {
+                error!("メッセージ取得失敗: {}", e);
+                false
+            }
+        };
 
-        let button = CreateButton::new("create_ticket")
-            .label("作成")
-            .style(ButtonStyle::Primary);
+        if already_sent {
+            info!("サポートEmbedは送信済みのためスキップします。");
+        } else {
+            let embed = CreateEmbed::new()
+                .title("サポートチケットを作成")
+                .description("次のボタンを押してサポートチケットを作成します。")
+                .color(0x5865F2);
 
-        let components = vec![CreateActionRow::Buttons(vec![button])];
+            let button = CreateButton::new("create_ticket")
+                .label("作成")
+                .style(ButtonStyle::Primary);
 
-        let msg = CreateMessage::new()
-            .embed(embed)
-            .components(components);
+            let components = vec![CreateActionRow::Buttons(vec![button])];
 
-        if let Err(e) = channel_id.send_message(&ctx.http, msg).await {
-            error!("Embed送信失敗: {}", e);
+            let msg = CreateMessage::new().embed(embed).components(components);
+
+            if let Err(e) = channel_id.send_message(&ctx.http, msg).await {
+                error!("Embed送信失敗: {}", e);
+            } else {
+                info!("サポートEmbedを送信しました。");
+            }
         }
     }
 
@@ -287,6 +316,7 @@ impl Handler {
                 return;
             }
         };
+
         let ticket_num: String = {
             let mut rng = rand::thread_rng();
             format!("{:06}", rng.gen_range(0..=999999))
@@ -356,7 +386,7 @@ impl Handler {
                     .color(0x57F287);
 
                 let msg = CreateMessage::new()
-                    .content(format!("<@{}>", user_id))
+                    .content(format!("<@{}> <@&{}>", user_id, role_id))
                     .embed(embed)
                     .components(vec![CreateActionRow::Buttons(vec![close_button])]);
 
