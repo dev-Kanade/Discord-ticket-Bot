@@ -10,3 +10,7 @@
 
 Botの作成と導入が完了したら [リリース](https://github.com/dev-Kanade/Discord-ticket-Bot)からBotの最新リリースをダウンロードしてください。
 
+その後は表示されるウェザードに従ってセットアップを進めてください。
+![alt text](image.png)
+![alt text](image-1.png)
+![alt text](image-2.png)
